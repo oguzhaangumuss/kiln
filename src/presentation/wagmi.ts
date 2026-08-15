@@ -1,19 +1,30 @@
-import { http, createConfig, type EIP1193Provider } from "wagmi";
+import { http, createConfig } from "wagmi";
 import { bsc, bscTestnet } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
+import type { EIP1193Provider } from "viem";
 
-type BrowserWindow = Window & {
-  ethereum?: EIP1193Provider & {
-    isMetaMask?: boolean;
-    providers?: EIP1193Provider[];
-  };
+type Ethereum = EIP1193Provider & {
+  isMetaMask?: boolean;
+  providers?: Ethereum[];
+};
+
+type WalletWindow = {
+  ethereum?: Ethereum;
+  addEventListener: Window["addEventListener"];
+  dispatchEvent: Window["dispatchEvent"];
 };
 
 const announced: EIP1193Provider[] = [];
 
+function asWalletWindow(win: unknown): WalletWindow | undefined {
+  if (!win || typeof win !== "object") return undefined;
+  return win as WalletWindow;
+}
+
 function listenForWallets() {
   if (typeof window === "undefined") return;
-  const win = window as BrowserWindow;
+  const win = asWalletWindow(window);
+  if (!win) return;
   win.addEventListener("eip6963:announceProvider", ((event: Event) => {
     const detail = (event as CustomEvent<{ provider?: EIP1193Provider }>).detail;
     if (detail?.provider && !announced.includes(detail.provider)) {
@@ -25,13 +36,10 @@ function listenForWallets() {
 
 listenForWallets();
 
-function browserProvider(win?: Window): EIP1193Provider | undefined {
-  const ethereum = (win as BrowserWindow | undefined)?.ethereum;
+function browserProvider(win?: unknown): EIP1193Provider | undefined {
+  const ethereum = asWalletWindow(win)?.ethereum;
   if (ethereum?.providers?.length) {
-    return (
-      ethereum.providers.find((p) => "isMetaMask" in p && p.isMetaMask) ??
-      ethereum.providers[0]
-    );
+    return ethereum.providers.find((p) => p.isMetaMask) ?? ethereum.providers[0];
   }
   return ethereum ?? announced[0];
 }
@@ -45,7 +53,7 @@ export const wagmiConfig = createConfig({
       target: {
         id: "injected",
         name: "Browser Wallet",
-        provider: browserProvider,
+        provider: browserProvider as never,
       },
     }),
   ],

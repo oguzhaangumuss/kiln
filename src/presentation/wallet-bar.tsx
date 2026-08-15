@@ -14,10 +14,7 @@ import { readKilnContracts } from "@/presentation/kiln-session";
 
 function hasBrowserWallet(): boolean {
   if (typeof window === "undefined") return false;
-  const ethereum = window.ethereum as
-    | { providers?: unknown[] }
-    | undefined;
-  return Boolean(ethereum || ethereum?.providers?.length);
+  return "ethereum" in window && Boolean((window as { ethereum?: unknown }).ethereum);
 }
 
 export function WalletBar() {
