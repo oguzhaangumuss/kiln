@@ -23,7 +23,7 @@ function warningFor(feed: ListAgentsResult["feed"]): string {
   if (feed === "bsc-rpc") {
     return "BSC ERC-8004 RPC page (8004scan unavailable). Registration is permissionless; mint ≠ honest.";
   }
-  return "8004scan BSC index. Pages of 25. Registration is permissionless; mint ≠ honest.";
+  return "8004scan BSC index. Pages of 50. Registration is permissionless; mint ≠ honest.";
 }
 
 export async function listAgents(

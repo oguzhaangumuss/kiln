@@ -19,8 +19,16 @@ export function categorySearchQ(category: AgentKind | "all"): string {
   if (category === "yield") return "yield";
   if (category === "health-factor") return "liquidation";
   if (category === "grid") return "grid";
-  if (category === "monitoring") return "wallet";
+  if (category === "monitoring") return "monitor";
   return "";
+}
+
+export function categorySearchNeedles(category: AgentKind | "all"): string[] {
+  if (category === "yield") return ["yield", "pancake", "lp"];
+  if (category === "health-factor") return ["liquidation", "health factor", "ltv"];
+  if (category === "grid") return ["grid", "range"];
+  if (category === "monitoring") return ["monitor", "scan", "alert"];
+  return [];
 }
 
 export const AGENT_KINDS: AgentKind[] = [

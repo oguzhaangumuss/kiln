@@ -34,6 +34,8 @@ function heatClass(heat: Heat): string {
   return "text-ok";
 }
 
+const PAGE = 50;
+
 const CHIPS: Array<{ id: AgentKind | "all"; label: string }> = [
   { id: "all", label: "All" },
   ...AGENT_KINDS.map((id) => ({ id, label: id })),
@@ -71,7 +73,7 @@ export function BayConsole() {
     setLoadError(null);
     const params = new URLSearchParams({
       offset: String(offset),
-      limit: "25",
+      limit: String(PAGE),
       hideHighHeat: hideHighHeat ? "1" : "0",
       q: qDebounced,
       category,
@@ -316,15 +318,15 @@ export function BayConsole() {
                 type="button"
                 className="border border-line px-2 py-1 font-mono text-[10px] uppercase disabled:opacity-40"
                 disabled={offset <= 0}
-                onClick={() => setOffset((n) => Math.max(0, n - 25))}
+                onClick={() => setOffset((n) => Math.max(0, n - PAGE))}
               >
                 Prev
               </button>
               <button
                 type="button"
                 className="border border-line px-2 py-1 font-mono text-[10px] uppercase disabled:opacity-40"
-                disabled={offset + 25 >= total}
-                onClick={() => setOffset((n) => n + 25)}
+                disabled={offset + PAGE >= total}
+                onClick={() => setOffset((n) => n + PAGE)}
               >
                 Next
               </button>

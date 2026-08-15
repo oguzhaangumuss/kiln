@@ -13,6 +13,9 @@ class FallbackCatalog implements AgentCatalogPort {
         return await port.page(request);
       } catch (err) {
         last = err;
+        const name = port.constructor.name;
+        const message = err instanceof Error ? err.message : "unknown";
+        console.warn(`[catalog] ${name} failed: ${message}`);
       }
     }
     throw last instanceof Error ? last : new Error("SCAN_FAIL");
