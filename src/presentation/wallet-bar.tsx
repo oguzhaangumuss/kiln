@@ -12,8 +12,6 @@ import { bscTestnet } from "wagmi/chains";
 import { DeployKilnButton } from "@/presentation/deploy-kiln-button";
 import { readKilnContracts } from "@/presentation/kiln-session";
 
-const EXPECTED = "0xd6BB137562cB91bd42D49646EFEFb92c8D76C648";
-
 function hasBrowserWallet(): boolean {
   if (typeof window === "undefined") return false;
   const ethereum = window.ethereum as
@@ -38,8 +36,6 @@ export function WalletBar() {
     window.addEventListener("kiln-contracts", sync);
     return () => window.removeEventListener("kiln-contracts", sync);
   }, []);
-
-  const sameWallet = address && address.toLowerCase() === EXPECTED.toLowerCase();
 
   async function onConnect() {
     setHint(null);
@@ -95,7 +91,6 @@ export function WalletBar() {
             <span className={wrong ? "text-heat" : "text-ok"}>
               {wrong ? `chain ${chainId}` : "bsc testnet"} · {address.slice(0, 6)}…
               {address.slice(-4)}
-              {sameWallet ? "" : " (not the team wallet)"}
             </span>
             {wrong ? (
               <button
@@ -134,7 +129,7 @@ export function WalletBar() {
         </p>
       ) : null}
       {ready ? (
-        <p className="font-mono text-[9px] text-ok">Kiln contracts ready in this browser.</p>
+        <p className="font-mono text-[9px] text-ok">Kiln contracts ready.</p>
       ) : (
         <DeployKilnButton />
       )}
