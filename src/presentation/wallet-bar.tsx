@@ -56,7 +56,7 @@ export function WalletBar() {
       connectors[0];
 
     if (!connector) {
-      setHint("Bağlayıcı yok. Sayfayı Chrome’da yenile.");
+      setHint("No wallet connector available. Refresh this page in Chrome or Brave.");
       return;
     }
 
@@ -72,7 +72,7 @@ export function WalletBar() {
           const message = err.message.toLowerCase();
           if (message.includes("provider not found")) {
             setHint(
-              "MetaMask bu sayfaya enjekte olmadı. Chrome’da localhost:3001 kullan; eklenti açık ve kilitli olmasın.",
+              "MetaMask did not inject into this page. Open the app in Chrome or Brave with the extension unlocked.",
             );
           }
         },
@@ -86,7 +86,7 @@ export function WalletBar() {
         {isConnected && address ? (
           <>
             <span className={wrong ? "text-heat" : "text-ok"}>
-              {wrong ? `chain ${chainId}` : "bsc testnet"} · {address.slice(0, 6)}…
+              {wrong ? "Wrong network" : "BSC testnet"} · {address.slice(0, 6)}…
               {address.slice(-4)}
             </span>
             {wrong ? (
@@ -95,7 +95,7 @@ export function WalletBar() {
                 className="relative z-50 cursor-pointer border border-amber px-2 py-1 text-amber"
                 onClick={() => switchChain({ chainId: bscTestnet.id })}
               >
-                Switch 97
+                Switch to BSC testnet
               </button>
             ) : null}
             <button
@@ -121,12 +121,12 @@ export function WalletBar() {
         <p className="max-w-xs text-right font-mono text-[9px] normal-case leading-4 text-heat">
           {hint ??
             (error?.message.includes("Provider not found")
-              ? "Cüzdan yok: Chrome’da http://localhost:3001 aç, MetaMask açık olsun."
+              ? "No wallet detected. Open this app in Chrome or Brave with MetaMask installed and unlocked."
               : error?.message)}
         </p>
       ) : null}
       {ready ? (
-        <p className="font-mono text-[9px] text-ok">Kiln contracts ready.</p>
+        <p className="font-mono text-[9px] text-ok">Kiln contracts connected.</p>
       ) : (
         <DeployKilnButton />
       )}

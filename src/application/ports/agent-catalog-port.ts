@@ -1,12 +1,10 @@
-import type { Agent, AgentKind } from "@/domain/agent";
-import type { CatalogFeed } from "@/domain/catalog-query";
+import type { Agent } from "@/domain/agent";
+import type { CatalogFeed, CatalogQuery } from "@/domain/catalog-query";
 
-export type CatalogPageRequest = {
-  offset: number;
-  limit: number;
-  q: string;
-  category: AgentKind | "all";
-};
+export type CatalogPageRequest = Pick<
+  CatalogQuery,
+  "offset" | "limit" | "q" | "category" | "pulse" | "x402Only" | "minFeedback" | "doorOnly"
+>;
 
 export type RawPage = {
   agents: Agent[];

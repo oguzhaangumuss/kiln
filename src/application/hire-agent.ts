@@ -13,10 +13,10 @@ export function hireAgent(
   txHash: string | null = null,
 ): Hire {
   if (!attested && !skippedAttestation) {
-    throw new Error("Hire blocked: sample-run not attested.");
+    throw new Error("Hiring is locked until a sample is attested or skipped.");
   }
   if (!envelopeAllowsHire(envelope)) {
-    throw new Error("Hire blocked: envelope empty or revoked.");
+    throw new Error("Hiring is locked: the spend envelope is empty or revoked.");
   }
   return {
     agentId: agent.id,
@@ -26,5 +26,6 @@ export function hireAgent(
     hours: envelope.hours,
     facilitator,
     at: new Date().toISOString(),
+    leaseId: null,
   };
 }

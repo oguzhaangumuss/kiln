@@ -2,16 +2,64 @@ import type { Agent } from "@/domain/agent";
 import { BSC_IDENTITY_REGISTRY } from "@/infrastructure/erc8004/addresses";
 
 function base(
-  partial: Omit<Agent, "pancakeAprBps" | "pancakeTvlUsd" | "totalFeedbacks" | "averageScore" | "x402Supported" | "chainId"> &
-    Partial<Pick<Agent, "pancakeAprBps" | "pancakeTvlUsd" | "totalFeedbacks" | "averageScore" | "x402Supported" | "chainId">>,
+  partial: Omit<
+    Agent,
+    | "pancakeAprBps"
+    | "pancakeTvlUsd"
+    | "pancakePair"
+    | "pancakeFeeBps"
+    | "pancakeTick"
+    | "pancakePrice"
+    | "totalFeedbacks"
+    | "averageScore"
+    | "x402Supported"
+    | "chainId"
+    | "protocols"
+    | "a2aEndpoint"
+    | "mcpEndpoint"
+    | "claimedJobs"
+    | "extraServices"
+    | "cardHydrated"
+  > &
+    Partial<
+      Pick<
+        Agent,
+        | "pancakeAprBps"
+        | "pancakeTvlUsd"
+        | "pancakePair"
+        | "pancakeFeeBps"
+        | "pancakeTick"
+        | "pancakePrice"
+        | "totalFeedbacks"
+        | "averageScore"
+        | "x402Supported"
+        | "chainId"
+        | "protocols"
+        | "a2aEndpoint"
+        | "mcpEndpoint"
+        | "claimedJobs"
+        | "extraServices"
+        | "cardHydrated"
+      >
+    >,
 ): Agent {
   return {
     pancakeAprBps: null,
     pancakeTvlUsd: null,
+    pancakePair: null,
+    pancakeFeeBps: null,
+    pancakeTick: null,
+    pancakePrice: null,
     totalFeedbacks: 0,
     averageScore: null,
     x402Supported: false,
     chainId: 56,
+    protocols: [],
+    a2aEndpoint: null,
+    mcpEndpoint: null,
+    claimedJobs: [],
+    extraServices: [],
+    cardHydrated: false,
     ...partial,
   };
 }
@@ -66,14 +114,14 @@ export class AgentRegistry {
       base({
         id: "104",
         agentId: "104",
-        handle: "WALLET-SCAN.8004",
-        kind: "monitoring",
+        handle: "RANGE-RESET.8004",
+        kind: "rebalancing",
         pulse: "stale",
         lastActivityBlock: 42_640_012,
-        mandate: "Watch treasury wallets. Last pulse 11d ago.",
+        mandate: "Reset concentrated Cake LP ranges when price walks out of band.",
         erc8004: `${registry}:104`,
         owner: "0x00000000000000000000000000000000000091ee",
-        agentUri: "https://example.invalid/wallet-scan.json",
+        agentUri: "https://example.invalid/range-reset.json",
         cardReadable: true,
       }),
       base({
@@ -83,7 +131,7 @@ export class AgentRegistry {
         kind: "unknown",
         pulse: "unknown",
         lastActivityBlock: 0,
-        mandate: "No readable agent card. Treat as hostile until kiln.",
+        mandate: "Agent card is missing. Treat as unverified until a sample is attested.",
         erc8004: `${registry}:105`,
         owner: "0x00000000000000000000000000000000000000d1",
         agentUri: "",
@@ -92,14 +140,14 @@ export class AgentRegistry {
       base({
         id: "106",
         agentId: "106",
-        handle: "POS-MONITOR.8004",
-        kind: "monitoring",
+        handle: "CLMM-KEEP.8004",
+        kind: "rebalancing",
         pulse: "live",
         lastActivityBlock: 42_881_210,
-        mandate: "Stream wallet + perp position deltas.",
+        mandate: "Keep a Pancake v3 CLMM position in range and reset when it drifts.",
         erc8004: `${registry}:106`,
         owner: "0x0000000000000000000000000000000000000c3a",
-        agentUri: "https://example.invalid/pos.json",
+        agentUri: "https://example.invalid/clmm-keep.json",
         cardReadable: true,
         totalFeedbacks: 12,
         averageScore: 81,

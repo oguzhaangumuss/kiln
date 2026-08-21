@@ -62,8 +62,95 @@ body {
   animation: kiln-heat 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.kiln-stage-grid {
+  background-image:
+    linear-gradient(rgba(61, 74, 58, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 74, 58, 0.35) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes kiln-agent-walk {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(36px);
+  }
+}
+
+@keyframes kiln-fill {
+  from {
+    height: 18%;
+  }
+  to {
+    height: 72%;
+  }
+}
+
+@keyframes kiln-bounce {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, 14px);
+  }
+}
+
+.kiln-agent-walk {
+  animation: kiln-agent-walk 1.4s ease-in-out infinite;
+}
+
+.kiln-fill {
+  height: 72%;
+  animation: kiln-fill 1.6s ease-out forwards;
+}
+
+.kiln-bounce {
+  animation: kiln-bounce 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiln-heat {
+    animation: none;
+    width: 100%;
+    background: #6f8f6a;
+  }
+
+  .kiln-agent-walk,
+  .kiln-fill,
+  .kiln-bounce {
+    animation: none;
+  }
+}
+
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--amber);
   outline-offset: 2px;
+}
+
+@keyframes kiln-skeleton {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.kiln-skeleton {
+  background: var(--line);
+  animation: kiln-skeleton 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiln-skeleton {
+    animation: none;
+    opacity: 0.5;
+  }
 }

@@ -25,7 +25,7 @@ export function useKilnTx() {
   }, []);
 
   async function attest(agentTokenId: bigint, resultHash: `0x${string}`) {
-    if (!contracts) throw new Error("Deploy the two Kiln contracts from the wallet bar first.");
+    if (!contracts) throw new Error("Deploy Kiln contracts from the wallet bar first.");
     const hash = await writeContractAsync(
       prepareAttest(contracts.attestation, agentTokenId, resultHash),
     );
@@ -34,7 +34,7 @@ export function useKilnTx() {
   }
 
   async function openEnvelope(agentTokenId: bigint, maxUsdt: number, hours: number) {
-    if (!contracts) throw new Error("Deploy the two Kiln contracts from the wallet bar first.");
+    if (!contracts) throw new Error("Deploy Kiln contracts from the wallet bar first.");
     const hash = await writeContractAsync(
       prepareOpenEnvelope(contracts.envelope, agentTokenId, maxUsdt, hours),
     );
@@ -60,7 +60,7 @@ export function useKilnTx() {
   }
 
   async function revoke(envelopeId: bigint) {
-    if (!contracts) throw new Error("Envelope contract not configured.");
+    if (!contracts) throw new Error("The spend envelope contract is not connected.");
     const hash = await writeContractAsync(prepareRevoke(contracts.envelope, envelopeId));
     if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
     return hash;

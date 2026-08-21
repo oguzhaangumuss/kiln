@@ -44,7 +44,7 @@ export function buildHireChallenge(maxUsdt: number): X402Challenge {
   const facilitator = facilitatorFromEnv();
   return {
     x402Version: 1,
-    error: "X-PAYMENT header required",
+    error: "Payment required to complete this hire.",
     accepts: [
       {
         scheme: "exact",

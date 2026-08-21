@@ -16,9 +16,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kiln — fire then hire",
+  title: "Kiln — Fire the agent. Then hire it.",
   description:
-    "BNB Chain marketplace: attest an ERC-8004 agent on a sample run, lock a spend envelope, then hire.",
+    "BNB Smart Chain marketplace for ERC-8004 agents: attest a sample run, lock a spend envelope, then hire.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { hireAgent } from "@/application/hire-agent";
+import { openLease } from "@/application/open-lease";
+import type { Agent } from "@/domain/agent";
+import type { SampleTrace } from "@/domain/sample-trace";
 import { findAgent } from "@/infrastructure/catalog/find-agent";
+import { createLeaseStore } from "@/infrastructure/leases/create-lease-store";
+import { readSessionWallet } from "@/infrastructure/session";
 import {
   buildHireChallenge,
   facilitatorFromEnv,
@@ -11,15 +16,20 @@ import {
 export async function POST(request: Request) {
   const body = (await request.json()) as {
     agentId?: string;
+    tokenId?: string;
+    chainId?: number;
     maxUsdt?: number;
     hours?: number;
     attested?: boolean;
     skipped?: boolean;
+    agent?: Agent;
+    sampleHash?: string | null;
+    sampleTrace?: SampleTrace | null;
   };
 
-  const agentId = body.agentId?.trim();
+  const agentId = body.agentId?.trim() || body.tokenId?.trim();
   if (!agentId) {
-    return NextResponse.json({ error: "agentId required" }, { status: 400 });
+    return NextResponse.json({ error: "Select an agent before hiring." }, { status: 400 });
   }
 
   const payment = parsePaymentHeader(request.headers.get("X-PAYMENT"));
@@ -29,14 +39,18 @@ export async function POST(request: Request) {
 
   if (!paymentLooksSettled(payment)) {
     return NextResponse.json(
-      { error: "X-PAYMENT must include envelopeTx (0x + 64 hex)." },
+      { error: "Payment proof is incomplete. Open a spend envelope, then try hiring again." },
       { status: 402 },
     );
   }
 
-  const agent = await findAgent(agentId);
+  const agent = await findAgent(agentId, {
+    tokenId: body.tokenId?.trim(),
+    chainId: body.chainId,
+    snapshot: body.agent ?? null,
+  });
   if (!agent) {
-    return NextResponse.json({ error: "Agent not in index" }, { status: 404 });
+    return NextResponse.json({ error: "This agent is not in the current index." }, { status: 404 });
   }
 
   try {
@@ -53,10 +67,46 @@ export async function POST(request: Request) {
       facilitatorFromEnv(),
       payment.envelopeTx ?? null,
     );
+
+    const sessionWallet = await readSessionWallet();
+    const hirer = payment.hirer?.toLowerCase() ?? null;
+    if (!sessionWallet) {
+      return NextResponse.json(
+        { error: "Sign the hire book so this lease is stored on your wallet." },
+        { status: 401 },
+      );
+    }
+    if (hirer && hirer !== sessionWallet) {
+      return NextResponse.json(
+        { error: "Hire book is signed for a different wallet. Sign again from the connected account." },
+        { status: 401 },
+      );
+    }
+
+    try {
+      const lease = await openLease(createLeaseStore(), {
+        wallet: sessionWallet,
+        agent,
+        maxUsdt: hire.maxUsdt,
+        hours: hire.hours,
+        hiredAt: hire.at,
+        envelopeTx: hire.txHash,
+        envelopeOnchainId: payment.envelopeId ? Number(payment.envelopeId) : null,
+        sampleHash: body.sampleHash ?? null,
+        sampleTrace: body.sampleTrace ?? null,
+      });
+      hire.leaseId = lease.id;
+    } catch {
+      return NextResponse.json(
+        { error: "Payment landed, but the hire book could not store this lease. Sign in and retry hire." },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json(hire);
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Hire blocked" },
+      { error: err instanceof Error ? err.message : "Hiring could not be completed." },
       { status: 403 },
     );
   }

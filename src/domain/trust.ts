@@ -19,6 +19,15 @@ export type TrustReport = {
 
 export type KilnMemory = "none" | "passed" | "failed" | "skipped";
 
+export function flagLabel(flag: RiskFlag): string {
+  if (flag === "permissionless_mint") return "Permissionless registration";
+  if (flag === "card_unreadable") return "Agent card incomplete";
+  if (flag === "stale_or_silent") return "No recent on-chain activity";
+  if (flag === "kiln_untested") return "Sample not yet attested";
+  if (flag === "kiln_failed") return "Sample failed";
+  return "No on-chain feedback";
+}
+
 export function assessTrust(agent: Agent, kiln: KilnMemory): TrustReport {
   const flags: RiskFlag[] = ["permissionless_mint"];
 
@@ -51,9 +60,9 @@ export function assessTrust(agent: Agent, kiln: KilnMemory): TrustReport {
     flags,
     summary:
       heat === "high"
-        ? "Do not treat as safe. Card missing or kiln failed."
+        ? "Do not hire yet. The agent card is incomplete or the sample failed."
         : heat === "medium"
-          ? "Unproven. Fire sample before hire."
-          : "Mint is not a background check. Envelope still required.",
+          ? "Unproven. Run a sample before hiring."
+          : "Registration is not a background check. A spend envelope is still required.",
   };
 }

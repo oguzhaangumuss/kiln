@@ -2,6 +2,7 @@ import { createPublicClient, http, type Address, type PublicClient } from "viem"
 import { bsc } from "viem/chains";
 import type { Agent } from "@/domain/agent";
 import { classifyKind } from "@/domain/kind";
+import { matchesDiscovery } from "@/domain/catalog-query";
 import type { AgentCatalogPort, CatalogPageRequest, RawPage } from "@/application/ports/agent-catalog-port";
 import { identityRegistryAbi } from "@/infrastructure/erc8004/abi";
 import { BSC_CHAIN_ID, BSC_IDENTITY_REGISTRY } from "@/infrastructure/erc8004/addresses";
@@ -10,6 +11,7 @@ type Card = {
   name?: string;
   description?: string;
   active?: boolean;
+  services?: Array<{ name?: string; endpoint?: string }>;
 };
 
 export class Erc8004RpcCatalog implements AgentCatalogPort {
@@ -39,13 +41,7 @@ export class Erc8004RpcCatalog implements AgentCatalogPort {
       if (agent) agents.push(agent);
     }
 
-    const q = request.q.trim().toLowerCase();
-    const filtered = agents.filter((agent) => {
-      if (request.category !== "all" && agent.kind !== request.category) return false;
-      if (!q) return true;
-      const hay = `${agent.handle} ${agent.mandate} ${agent.kind}`.toLowerCase();
-      return q.split(/\s+/).every((word) => hay.includes(word));
-    });
+    const filtered = agents.filter((agent) => matchesDiscovery(agent, request));
 
     return { agents: filtered, totalOnChain, feed: "bsc-rpc" };
   }
@@ -87,6 +83,16 @@ export class Erc8004RpcCatalog implements AgentCatalogPort {
       const handle = card?.name?.slice(0, 48) || `AGENT-${tokenId.toString()}`;
       const mandate = card?.description?.slice(0, 180) || "No readable agent card.";
       const live = card?.active === true;
+      const a2a =
+        card?.services?.find((service) => (service.name || "").toUpperCase() === "A2A")
+          ?.endpoint ?? null;
+      const mcp =
+        card?.services?.find((service) => (service.name || "").toUpperCase() === "MCP")
+          ?.endpoint ?? null;
+      const protocols = [
+        ...(a2a ? ["A2A"] : []),
+        ...(mcp ? ["MCP"] : []),
+      ];
 
       return {
         id: tokenId.toString(),
@@ -101,11 +107,29 @@ export class Erc8004RpcCatalog implements AgentCatalogPort {
         agentUri: uri,
         pancakeAprBps: null,
         pancakeTvlUsd: null,
+        pancakePair: null,
+        pancakeFeeBps: null,
+        pancakeTick: null,
+        pancakePrice: null,
         cardReadable: Boolean(card),
         totalFeedbacks: 0,
         averageScore: null,
         x402Supported: false,
         chainId: BSC_CHAIN_ID,
+        protocols,
+        a2aEndpoint: a2a,
+        mcpEndpoint: mcp,
+        claimedJobs: [],
+        extraServices: (card?.services ?? [])
+          .filter((service) => {
+            const name = (service.name || "").toUpperCase();
+            return name !== "A2A" && name !== "MCP" && Boolean(service.endpoint);
+          })
+          .map((service) => ({
+            name: service.name || "service",
+            endpoint: service.endpoint || "",
+          })),
+        cardHydrated: Boolean(card),
       };
     } catch {
       return null;

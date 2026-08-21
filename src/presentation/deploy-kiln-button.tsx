@@ -36,7 +36,9 @@ export function DeployKilnButton() {
       const envReceipt = await publicClient.waitForTransactionReceipt({ hash: envHash });
       const attestation = attReceipt.contractAddress;
       const envelope = envReceipt.contractAddress;
-      if (!attestation || !envelope) throw new Error("Deploy mined but address missing.");
+      if (!attestation || !envelope) {
+        throw new Error("Deployment confirmed, but a contract address was missing from the receipt.");
+      }
       writeKilnContracts({ attestation, envelope });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Deploy failed.");
@@ -55,7 +57,7 @@ export function DeployKilnButton() {
         onClick={() => void deploy()}
         className="border border-ok px-2 py-1 font-mono text-[10px] uppercase text-ok disabled:opacity-40"
       >
-        {busy ? "Deploying…" : "Deploy kiln contracts"}
+        {busy ? "Deploying…" : "Deploy Kiln contracts"}
       </button>
       {error ? <p className="max-w-xs text-right font-mono text-[9px] text-heat">{error}</p> : null}
     </div>

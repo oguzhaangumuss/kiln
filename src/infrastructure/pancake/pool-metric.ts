@@ -24,6 +24,17 @@ function toUsd(value: number): number {
   return value > 1e12 ? value / 1e12 : value;
 }
 
+function symbolOf(row: Record<string, unknown>, key: string): string | null {
+  const nested = row[key];
+  if (nested && typeof nested === "object") {
+    const rec = nested as Record<string, unknown>;
+    const symbol = rec.symbol ?? rec.tokenSymbol;
+    if (typeof symbol === "string" && symbol.trim()) return symbol.trim();
+  }
+  const flat = row[`${key}Symbol`] ?? row[key === "token0" ? "token0symbol" : "token1symbol"];
+  return typeof flat === "string" && flat.trim() ? flat.trim() : null;
+}
+
 function pickPool(payload: unknown): PoolMetric | null {
   if (!payload || typeof payload !== "object") return null;
   const root = payload as Record<string, unknown>;
@@ -51,11 +62,27 @@ function pickPool(payload: unknown): PoolMetric | null {
     num((apr24 as Record<string, unknown> | undefined)?.value);
   const rawTvl = num(first.tvlUSD) ?? num(first.tvlUsd) ?? num(first.tvl) ?? num(first.liquidityUSD);
   const tvl = rawTvl === null ? null : toUsd(rawTvl);
-  if (apr === null && tvl === null) return null;
+  const token0 = symbolOf(first, "token0");
+  const token1 = symbolOf(first, "token1");
+  const pair = token0 && token1 ? `${token0}/${token1}` : null;
+  const feeRaw = num(first.feeTier) ?? num(first.fee) ?? num(first.feeBps);
+  const feeBps = feeRaw === null ? null : Math.round(feeRaw);
+  const tick = num(first.tick) ?? num(first.currentTick);
+  const price =
+    num(first.token0Price) ??
+    num(first.token1Price) ??
+    num(first.price) ??
+    num(first.token0PriceUSD);
+
+  if (apr === null && tvl === null && tick === null && price === null && !pair) return null;
   return {
     aprBps: apr === null ? null : toBps(apr),
     tvlUsd: tvl,
     source: "pancakeswap-public",
+    pair,
+    feeBps,
+    tick: tick === null ? null : Math.round(tick),
+    price,
   };
 }
 

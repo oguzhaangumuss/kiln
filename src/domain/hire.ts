@@ -8,4 +8,5 @@ export type Hire = {
   hours: number;
   facilitator: HireFacilitator;
   at: string;
+  leaseId: string | null;
 };

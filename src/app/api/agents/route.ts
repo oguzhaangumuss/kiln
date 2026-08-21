@@ -1,21 +1,16 @@
 import type { AgentKind } from "@/domain/agent";
 import { NextResponse } from "next/server";
 import { listAgents } from "@/application/list-agents";
+import { parseAgentSort, parsePulseFilter } from "@/domain/catalog-query";
+import { AGENT_KINDS } from "@/domain/kind";
 import { createCatalog } from "@/infrastructure/catalog/create-catalog";
 import { kilnMemory } from "@/infrastructure/catalog/kiln-memory";
 import { createPancake } from "@/infrastructure/pancake/pool-metric";
 
-const KINDS: Array<AgentKind | "all"> = [
-  "all",
-  "monitoring",
-  "grid",
-  "health-factor",
-  "yield",
-  "unknown",
-];
-
 function categoryOf(raw: string | null): AgentKind | "all" {
-  if (raw && (KINDS as string[]).includes(raw)) return raw as AgentKind | "all";
+  if (!raw || raw === "all") return "all";
+  if (raw === "monitoring") return "rebalancing";
+  if ((AGENT_KINDS as string[]).includes(raw)) return raw as AgentKind;
   return "all";
 }
 
@@ -26,6 +21,11 @@ export async function GET(request: Request) {
   const hideHighHeat = url.searchParams.get("hideHighHeat") === "1";
   const q = url.searchParams.get("q") ?? "";
   const category = categoryOf(url.searchParams.get("category"));
+  const sort = parseAgentSort(url.searchParams.get("sort"));
+  const pulse = parsePulseFilter(url.searchParams.get("pulse"));
+  const x402Only = url.searchParams.get("x402") === "1";
+  const minFeedback = Number(url.searchParams.get("minFeedback") ?? "0");
+  const doorOnly = url.searchParams.get("door") === "1";
 
   try {
     const result = await listAgents(createCatalog(), kilnMemory, createPancake(), {
@@ -34,6 +34,11 @@ export async function GET(request: Request) {
       hideHighHeat,
       q,
       category,
+      sort,
+      pulse,
+      x402Only,
+      minFeedback: Number.isFinite(minFeedback) ? Math.max(0, minFeedback) : 0,
+      doorOnly,
     });
     return NextResponse.json(result, {
       headers: {
@@ -42,7 +47,7 @@ export async function GET(request: Request) {
     });
   } catch {
     return NextResponse.json(
-      { error: "Catalog read failed (SCAN_FAIL). Synthetic feed should still load." },
+      { error: "The agent catalog could not be loaded. Please try again." },
       { status: 502 },
     );
   }
