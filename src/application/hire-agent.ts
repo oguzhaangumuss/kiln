@@ -2,7 +2,6 @@ import type { Agent } from "@/domain/agent";
 import type { Envelope } from "@/domain/envelope";
 import { envelopeAllowsHire } from "@/domain/envelope";
 import type { Hire, HireFacilitator } from "@/domain/hire";
-import { simulateHireTx } from "@/infrastructure/sample-kiln";
 
 export function hireAgent(
   agent: Agent,
@@ -20,7 +19,6 @@ export function hireAgent(
   }
   return {
     agentId: agent.id,
-    simulatedTx: simulateHireTx(agent.id, envelope.maxUsdt),
     txHash,
     maxUsdt: envelope.maxUsdt,
     hours: envelope.hours,

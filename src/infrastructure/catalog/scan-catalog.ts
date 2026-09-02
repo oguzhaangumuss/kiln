@@ -1,7 +1,8 @@
 import type { Agent, AgentKind, Pulse } from "@/domain/agent";
 import { jobsFromUnknown, type AdvertisedService } from "@/domain/published-job";
-import { classifyKind, categorySearchQ, categorySearchNeedles } from "@/domain/kind";
+import { classifyKind, categorySearchQ, categorySearchNeedles, FIRST_CLASS_KINDS } from "@/domain/kind";
 import { matchesDiscovery } from "@/domain/catalog-query";
+import { interleaveRoundRobin } from "@/domain/interleave";
 import type { PulseFilter } from "@/domain/catalog-query";
 import type { AgentCatalogPort, CatalogPageRequest, RawPage } from "@/application/ports/agent-catalog-port";
 import { TtlCache } from "@/infrastructure/catalog/ttl-cache";
@@ -9,6 +10,7 @@ import { BSC_IDENTITY_REGISTRY } from "@/infrastructure/erc8004/addresses";
 
 const BSC_CHAIN = 56;
 const CACHE_MS = 120_000;
+const SEARCH_TIMEOUT_MS = 6_000;
 
 type ScanService = { name?: string; endpoint?: string };
 
@@ -78,7 +80,12 @@ function scanBase(): string {
   return scanKey() ? AUTH_BASE : PUBLIC_BASE;
 }
 
-async function scanFetch<T>(base: string, path: string, withKey: boolean): Promise<ScanEnvelope<T>> {
+async function scanFetch<T>(
+  base: string,
+  path: string,
+  withKey: boolean,
+  timeoutMs = 20_000,
+): Promise<ScanEnvelope<T>> {
   const h: Record<string, string> = { Accept: "application/json" };
   if (withKey) {
     const key = scanKey();
@@ -86,7 +93,7 @@ async function scanFetch<T>(base: string, path: string, withKey: boolean): Promi
   }
   const res = await fetch(`${base}${path}`, {
     headers: h,
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
   });
   const body = (await res.json()) as ScanEnvelope<T> & AuthList;
@@ -122,14 +129,14 @@ async function scanFetch<T>(base: string, path: string, withKey: boolean): Promi
   return body;
 }
 
-async function scanGet<T>(path: string): Promise<ScanEnvelope<T>> {
+async function scanGet<T>(path: string, timeoutMs?: number): Promise<ScanEnvelope<T>> {
   const keyed = Boolean(scanKey());
   try {
-    return await scanFetch<T>(scanBase(), path, keyed);
+    return await scanFetch<T>(scanBase(), path, keyed, timeoutMs);
   } catch (err) {
     // Keyed /agents/{chain}/{token} returns 403; public detail still works.
     if (!keyed || scanBase() === PUBLIC_BASE) throw err;
-    return scanFetch<T>(PUBLIC_BASE, path, false);
+    return scanFetch<T>(PUBLIC_BASE, path, false, timeoutMs);
   }
 }
 
@@ -284,6 +291,11 @@ export class ScanCatalog implements AgentCatalogPort {
     const discovery = { q, category, pulse, x402Only, minFeedback, doorOnly };
     const filtered = q.trim() || category !== "all" || pulse !== "all" || x402Only || minFeedback > 0 || doorOnly;
 
+    if (!filtered) {
+      const mixed = await this.interleaveFirstClass(page, limit);
+      if (mixed) return mixed;
+    }
+
     if (searchQ) {
       const searched = await this.searchFill(needles, page, limit, discovery);
       if (searched) {
@@ -332,6 +344,36 @@ export class ScanCatalog implements AgentCatalogPort {
     };
   }
 
+  private async interleaveFirstClass(page: number, limit: number): Promise<RawPage | null> {
+    const perKind = Math.min(24, Math.max(8, Math.ceil(limit / FIRST_CLASS_KINDS.length) + 6));
+    // Ask 8004scan for a full page per needle even though we only keep `perKind`.
+    // A short page makes searchFill walk to page 2 for every needle, and those
+    // extra round-trips are what make a cold landing slow.
+    const fetchPerKind = 50;
+    const groups = await Promise.all(
+      FIRST_CLASS_KINDS.map(async (kind) => {
+        const needles = categorySearchNeedles(kind);
+        const raw = await this.searchFill(needles, 1, fetchPerKind, {
+          q: "",
+          category: kind,
+          pulse: "all",
+          x402Only: false,
+          minFeedback: 0,
+          doorOnly: false,
+        });
+        return (raw?.agents ?? []).filter((agent) => agent.kind === kind).slice(0, perKind);
+      }),
+    );
+    const mixed = interleaveRoundRobin(groups, (agent) => agent.id);
+    if (mixed.length === 0) return null;
+    const offset = (page - 1) * limit;
+    return {
+      agents: mixed.slice(offset, offset + limit),
+      totalOnChain: mixed.length,
+      feed: "8004scan",
+    };
+  }
+
   private async searchFill(
     needles: string[],
     page: number,
@@ -351,7 +393,12 @@ export class ScanCatalog implements AgentCatalogPort {
     let total = 0;
     let any = false;
 
-    for (let p = 1; p <= 12 && agents.length < limit; p += 1) {
+    // Each page costs one request per needle. Merging several needles already
+    // returns far more rows per page, so deep paging is what makes a cold landing
+    // slow rather than what fills it. Widen when a single needle is in play.
+    const maxPages = needles.length > 2 ? 2 : 12;
+
+    for (let p = 1; p <= maxPages && agents.length < limit; p += 1) {
       const searched = await this.searchPages(needles, p, limit);
       if (!searched) break;
       any = true;
@@ -383,24 +430,47 @@ export class ScanCatalog implements AgentCatalogPort {
     page: number,
     limit: number,
   ): Promise<{ rows: ScanAgent[]; total: number } | null> {
-    for (const needle of needles) {
-      try {
-        const searched = await scanGet<ScanAgent[]>(
-          scanKey()
-            ? `/agents?search=${encodeURIComponent(needle)}&${chainQuery()}&page=${page}&limit=${limit}`
-            : `/agents/search?q=${encodeURIComponent(needle)}&${chainQuery()}&page=${page}&limit=${limit}`,
-        );
-        const rows = Array.isArray(searched.data) ? searched.data : [];
-        if (rows.length === 0) continue;
-        return {
-          rows,
-          total: searched.meta?.pagination?.total ?? rows.length,
-        };
-      } catch {
-        continue;
+    // 8004scan search is fuzzy: one term returns mostly unrelated cards, and the
+    // caller's classifier drops them again. Merge every term so a category is not
+    // limited to whatever the first needle happened to match.
+    const merged: ScanAgent[] = [];
+    const seen = new Set<string>();
+    let total = 0;
+    let answered = false;
+
+    const pages = await Promise.all(
+      needles.map(async (needle) => {
+        try {
+          // A category is served by several needles at once, so one slow term
+          // must not hold the whole chip. Upstream search answers in about a
+          // second; anything far past that is dropped and the rest still land.
+          return await scanGet<ScanAgent[]>(
+            scanKey()
+              ? `/agents?search=${encodeURIComponent(needle)}&${chainQuery()}&page=${page}&limit=${limit}`
+              : `/agents/search?q=${encodeURIComponent(needle)}&${chainQuery()}&page=${page}&limit=${limit}`,
+            SEARCH_TIMEOUT_MS,
+          );
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    for (const searched of pages) {
+      if (!searched) continue;
+      const rows = Array.isArray(searched.data) ? searched.data : [];
+      answered = true;
+      total = Math.max(total, searched.meta?.pagination?.total ?? rows.length);
+      for (const row of rows) {
+        const id = `${row.chain_id}:${row.contract_address}:${row.token_id}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        merged.push(row);
       }
     }
-    return null;
+
+    if (!answered) return null;
+    return { rows: merged, total: Math.max(total, merged.length) };
   }
 
   private async listBsc(page: number, limit: number): Promise<{ rows: ScanAgent[]; total: number }> {

@@ -48,14 +48,9 @@ export async function fireSample(agent: Agent): Promise<Attestation> {
     agentId: agent.id,
     taskId: SAMPLE_TASK_ID,
     resultHash,
-    simulatedTx: hexFrom(`tx|${agent.id}|${SAMPLE_TASK_ID}`),
     txHash: null,
     at: new Date().toISOString(),
     work: workFromTrace(agent, trace),
     trace,
   };
-}
-
-export function simulateHireTx(agentId: string, maxUsdt: number): string {
-  return hexFrom(`hire|${agentId}|${maxUsdt}|${Date.now()}`);
 }

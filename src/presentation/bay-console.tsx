@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ListedAgent, ListAgentsResult } from "@/application/list-agents";
 import type { AgentKind } from "@/domain/agent";
 import { CATEGORY_MANDATE, FIRST_CLASS_KINDS, kindLabel } from "@/domain/kind";
-import { informedMetricLine } from "@/domain/category-deck";
 import type { Attestation } from "@/domain/attestation";
 import type { Envelope } from "@/domain/envelope";
 import type { Hire } from "@/domain/hire";
@@ -19,13 +18,10 @@ import { MyHireDetail, MyHiresList, useHireBook } from "@/presentation/my-hires"
 import { KilnChamber } from "@/presentation/chamber/kiln-chamber";
 import { CategoryDeckPanel } from "@/presentation/category-deck";
 import { FrontDoorStrip, useFrontDoorDismissed } from "@/presentation/front-door";
+import { HireLogsDetail, HireLogsPanel } from "@/presentation/hire-logs";
 import { JargonTip } from "@/presentation/jargon-tip";
 import { hireBlockers } from "@/domain/hire-blockers";
 import type { ChamberPhase } from "@/presentation/chamber/phase";
-
-function metricLine(agent: ListedAgent["agent"], detail = false): string {
-  return informedMetricLine(agent, detail);
-}
 
 function heatLabel(heat: Heat): string {
   if (heat === "high") return "High risk";
@@ -83,7 +79,7 @@ export function BayConsole() {
   const kiln = useKilnTx();
   const book = useHireBook();
   const frontDoor = useFrontDoorDismissed();
-  const [desk, setDesk] = useState<"bay" | "hires">("bay");
+  const [desk, setDesk] = useState<"bay" | "hires" | "logs">("bay");
   const [advanced, setAdvanced] = useState(false);
   const [catalogBusy, setCatalogBusy] = useState(true);
   const [workOpen, setWorkOpen] = useState(false);
@@ -156,7 +152,9 @@ export function BayConsole() {
   }, [offset, hideHighHeat, qDebounced, category, sort, pulse, x402Only, doorOnly, minFeedback]);
 
   const pageRef = useRef(page);
-  pageRef.current = page;
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
   useEffect(() => {
     void load();
@@ -422,7 +420,7 @@ export function BayConsole() {
           }`}
         >
           <div className="shrink-0 flex flex-col gap-2 border-b border-line px-5 py-3">
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               <button
                 type="button"
                 onClick={() => {
@@ -447,6 +445,18 @@ export function BayConsole() {
               >
                 My hires
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDesk("logs");
+                  setWorkOpen(false);
+                }}
+                className={`min-h-9 border px-2 py-1 font-mono text-[10px] uppercase ${
+                  desk === "logs" ? "border-amber bg-amber text-bg" : "border-line text-ink/80"
+                }`}
+              >
+                Logs
+              </button>
             </div>
             {desk === "bay" ? (
             <>
@@ -459,18 +469,11 @@ export function BayConsole() {
                   ? "8004scan"
                   : page?.feed === "bsc-rpc"
                     ? "BSC RPC"
-                    : page?.feed === "synthetic"
-                      ? "Sample"
-                      : "…"}{" "}
+                    : "…"}{" "}
                 · {page?.items.length ?? 0} / {total}
               </span>
             </div>
             <p className="font-mono text-[10px] text-ink/55">○ compare, up to 3</p>
-            {page?.feed === "synthetic" ? (
-              <p className="font-mono text-[10px] text-heat">
-                Showing sample agents. The live 8004scan index is unavailable.
-              </p>
-            ) : null}
             <input
               value={q}
               onChange={(e) => {
@@ -496,6 +499,9 @@ export function BayConsole() {
                   }`}
                 >
                   {chip.label}
+                  {chip.id !== "all" && page
+                    ? ` · ${page.kindCounts[chip.id] ?? 0}`
+                    : ""}
                 </button>
               ))}
             </div>
@@ -645,11 +651,15 @@ export function BayConsole() {
             ) : null}
             </>
             ) : (
-              <h2 className="font-mono text-xs tracking-[0.18em] text-ink uppercase">My hires</h2>
+              <h2 className="font-mono text-xs tracking-[0.18em] text-ink uppercase">
+                {desk === "logs" ? "Logs" : "My hires"}
+              </h2>
             )}
           </div>
           {desk === "hires" ? (
             <MyHiresList book={book} onOpen={() => setWorkOpen(true)} />
+          ) : desk === "logs" ? (
+            <HireLogsPanel />
           ) : (
             <>
           {compared.length > 0 ? (
@@ -747,7 +757,6 @@ export function BayConsole() {
                       <span className="mt-1 block font-mono text-[10px] text-ok">
                         #{row.agent.agentId} · {row.agent.pulse} · {kindLabel(row.agent.kind)}
                         {row.agent.protocols.length > 0 ? ` · door ${row.agent.protocols.join("/")}` : " · no door"}
-                        {metricLine(row.agent) ? ` · ${metricLine(row.agent)}` : ""}
                       </span>
                     </button>
                   </div>
@@ -770,7 +779,7 @@ export function BayConsole() {
               onClick={() => setWorkOpen(false)}
               className="lg:hidden min-h-11 border-b border-line px-6 py-3 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-amber"
             >
-              {desk === "hires" ? "Back to leases" : "Back to agents"}
+              {desk === "hires" ? "Back to leases" : desk === "logs" ? "Back to log" : "Back to agents"}
             </button>
           ) : null}
           {desk === "hires" ? (
@@ -786,6 +795,8 @@ export function BayConsole() {
                 }
               }}
             />
+          ) : desk === "logs" ? (
+            <HireLogsDetail />
           ) : catalogBusy && !selected ? (
             <div className="p-8">
               <div className="kiln-skeleton h-4 w-1/3" />
@@ -993,7 +1004,7 @@ export function BayConsole() {
                     {hire.facilitator === "b402" ? "B402" : "Kiln"}
                     {hire.leaseId ? " · saved to My hires" : ""}
                     <br />
-                    {hire.txHash ? `TX ${hire.txHash}` : `Receipt ${hire.simulatedTx}`}
+                    {hire.txHash ? `TX ${hire.txHash}` : "Hire stored. No on-chain envelope tx on this session."}
                   </p>
                 ) : null}
               </div>

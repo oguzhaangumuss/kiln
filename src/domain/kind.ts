@@ -21,39 +21,99 @@ export const CATEGORY_MANDATE: Record<AgentKind, string> = {
   unknown: "This card does not map to a first-class Kiln category yet.",
 };
 
-const KEYWORDS: Array<{ kind: AgentKind; needles: string[] }> = [
+/**
+ * Weighted needles. A first-match-wins scan mis-files agents whose text mentions
+ * several categories: "Yield Weaver [Farm Strategist]" reads as rebalancing the
+ * moment it also says "rebalance", and a generic "trading" once claimed yield.
+ * Strong needles name the mandate itself; weak needles are supporting evidence
+ * that only decides between kinds when nothing stronger matched.
+ */
+const STRONG = 4;
+const WEAK = 1;
+
+const KEYWORDS: Array<{ kind: AgentKind; needles: Array<[string, number]> }> = [
   {
     kind: "rebalancing",
     needles: [
-      "rebalanc",
-      "clmm",
-      "concentrated",
-      "lp range",
-      "range reset",
-      "reset position",
-      "concentrated liquidity",
+      ["rebalanc", STRONG],
+      ["lp range", STRONG],
+      ["range reset", STRONG],
+      ["reset position", STRONG],
+      ["concentrated liquidity", STRONG],
+      ["clmm", STRONG],
+      ["range state", STRONG],
+      ["concentrated", WEAK],
     ],
   },
   {
     kind: "health-factor",
-    needles: ["health factor", "health-factor", "liquidat", "ltv", "collateral", "venus"],
+    needles: [
+      ["health factor", STRONG],
+      ["health-factor", STRONG],
+      ["liquidation", STRONG],
+      ["liquidat", WEAK],
+      ["ltv", STRONG],
+      ["venus", STRONG],
+      ["collateral", WEAK],
+      ["lending position", STRONG],
+    ],
   },
   {
     kind: "grid",
-    needles: ["grid", "band", "grid trading"],
+    needles: [
+      ["grid trading", STRONG],
+      ["grid trader", STRONG],
+      ["grid plan", STRONG],
+      ["grid order", STRONG],
+      ["grid", WEAK],
+      ["ladder", WEAK],
+      ["band", WEAK],
+    ],
   },
   {
     kind: "yield",
-    needles: ["yield", "cake", "farm", "apr", "apy", "pancake", "swap", "trading"],
+    needles: [
+      ["yield", STRONG],
+      ["apr", STRONG],
+      ["apy", STRONG],
+      ["farm", STRONG],
+      ["compound", STRONG],
+      ["staking", STRONG],
+      ["highest available", STRONG],
+      ["cake", WEAK],
+      ["pancake", WEAK],
+    ],
   },
 ];
 
+/**
+ * Highest score wins. Ties fall to the kind whose strongest needle appears
+ * earliest in the text, which favours the phrase the card leads with.
+ */
 export function classifyKind(text: string): AgentKind {
   const t = text.toLowerCase();
+  let best: AgentKind = "unknown";
+  let bestScore = 0;
+  let bestAt = Number.MAX_SAFE_INTEGER;
+
   for (const row of KEYWORDS) {
-    if (row.needles.some((n) => t.includes(n))) return row.kind;
+    let score = 0;
+    let firstAt = Number.MAX_SAFE_INTEGER;
+    for (const [needle, weight] of row.needles) {
+      const at = t.indexOf(needle);
+      if (at < 0) continue;
+      score += weight;
+      if (weight === STRONG && at < firstAt) firstAt = at;
+    }
+    if (score === 0) continue;
+    if (score > bestScore || (score === bestScore && firstAt < bestAt)) {
+      best = row.kind;
+      bestScore = score;
+      bestAt = firstAt;
+    }
   }
-  return "unknown";
+
+  return best;
 }
 
 export function parseAgentKind(raw: unknown): AgentKind {
@@ -72,11 +132,23 @@ export function categorySearchQ(category: AgentKind | "all"): string {
   return "";
 }
 
+/**
+ * Search terms sent to 8004scan, widest first. Its search is fuzzy, so a single
+ * term returns mostly unrelated cards; the classifier filters them out again.
+ * Several terms per category is what gives each chip comparable depth — "yield"
+ * alone surfaced two agents while the registry holds far more under farm/staking.
+ */
 export function categorySearchNeedles(category: AgentKind | "all"): string[] {
-  if (category === "yield") return ["yield", "pancake", "apr"];
-  if (category === "health-factor") return ["liquidation", "health factor", "ltv"];
-  if (category === "grid") return ["grid", "band"];
-  if (category === "rebalancing") return ["rebalance", "lp range", "clmm"];
+  if (category === "yield") {
+    return ["yield", "farm", "staking", "apy", "compound", "apr"];
+  }
+  if (category === "health-factor") {
+    return ["liquidation", "health factor", "ltv", "venus", "lending", "collateral"];
+  }
+  if (category === "grid") return ["grid", "grid trading", "ladder", "band"];
+  if (category === "rebalancing") {
+    return ["rebalance", "lp range", "clmm", "concentrated liquidity", "range"];
+  }
   return [];
 }
 

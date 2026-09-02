@@ -1,7 +1,6 @@
 import type { Agent, Pulse } from "@/domain/agent";
 import { parseAgentKind } from "@/domain/kind";
 import { jobsFromUnknown, type AdvertisedService } from "@/domain/published-job";
-import { AgentRegistry } from "@/infrastructure/agent-registry";
 import { recallListedAgent, rememberListedAgents } from "@/infrastructure/catalog/agent-lookup-cache";
 import { fetchScanAgent } from "@/infrastructure/catalog/scan-catalog";
 
@@ -107,16 +106,6 @@ export async function findAgent(
   id: string,
   hint?: AgentLookupHint,
 ): Promise<Agent | null> {
-  const synthetic = new AgentRegistry()
-    .all()
-    .find(
-      (agent) =>
-        agent.id === id ||
-        agent.agentId === id ||
-        agent.agentId === hint?.tokenId,
-    );
-  if (synthetic) return synthetic;
-
   const cached =
     recallListedAgent(id) ??
     (hint?.tokenId ? recallListedAgent(hint.tokenId) : undefined);

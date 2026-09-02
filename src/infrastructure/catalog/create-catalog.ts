@@ -1,7 +1,6 @@
 import type { AgentCatalogPort, CatalogPageRequest, RawPage } from "@/application/ports/agent-catalog-port";
 import { Erc8004RpcCatalog } from "@/infrastructure/catalog/erc8004-rpc-catalog";
 import { ScanCatalog } from "@/infrastructure/catalog/scan-catalog";
-import { SyntheticCatalog } from "@/infrastructure/catalog/synthetic-catalog";
 
 class FallbackCatalog implements AgentCatalogPort {
   constructor(private readonly ports: AgentCatalogPort[]) {}
@@ -22,11 +21,11 @@ class FallbackCatalog implements AgentCatalogPort {
   }
 }
 
-export function createCatalog(): AgentCatalogPort {
+export function createCatalogPorts(): AgentCatalogPort[] {
   const rpc = process.env.BSC_RPC_URL?.trim() || "https://bsc-dataseed.binance.org";
-  return new FallbackCatalog([
-    new ScanCatalog(),
-    new Erc8004RpcCatalog(rpc),
-    new SyntheticCatalog(),
-  ]);
+  return [new ScanCatalog(), new Erc8004RpcCatalog(rpc)];
+}
+
+export function createCatalog(): AgentCatalogPort {
+  return new FallbackCatalog(createCatalogPorts());
 }

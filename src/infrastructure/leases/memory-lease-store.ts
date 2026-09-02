@@ -1,6 +1,7 @@
 import type { Heartbeat } from "@/domain/heartbeat";
 import { expiresAtFrom, statusOf, type Lease } from "@/domain/lease";
 import type { LeaseStorePort, OpenLeaseInput } from "@/application/ports/lease-store-port";
+import { toHireLogEntry, type HireLogEntry } from "@/domain/hire-log";
 
 const wallets = new Set<string>();
 const leases = new Map<string, Lease>();
@@ -108,6 +109,14 @@ export class MemoryLeaseStore implements LeaseStorePort {
 
   async recentHeartbeats(leaseId: string, limit: number): Promise<Heartbeat[]> {
     return (beats.get(leaseId) ?? []).slice(0, limit);
+  }
+
+  async listRecentHires(limit: number): Promise<HireLogEntry[]> {
+    const cap = Math.min(Math.max(limit, 1), 80);
+    return [...leases.values()]
+      .sort((a, b) => Date.parse(b.hiredAt) - Date.parse(a.hiredAt))
+      .slice(0, cap)
+      .map(toHireLogEntry);
   }
 }
 

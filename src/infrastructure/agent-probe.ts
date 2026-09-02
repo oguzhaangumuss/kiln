@@ -40,7 +40,7 @@ function blockedUrl(raw: string): string | null {
   }
   if (isPrivateIPv4(host)) return "Private IP ranges are blocked.";
   if (host.includes(":")) return "IPv6 endpoints are skipped.";
-  if (host.endsWith(".invalid")) return "Placeholder URL on a synthetic card.";
+  if (host.endsWith(".invalid")) return "This URL is not a reachable catalog.";
   return null;
 }
 

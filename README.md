@@ -10,7 +10,7 @@ Kiln is a hire desk. Sample GETs the advertised A2A/MCP catalog. It does not run
 
 - Next.js 16, TypeScript, wagmi, viem
 - Solidity 0.8.24 (Foundry): `KilnAttestation`, `KilnEnvelope`
-- Catalog: 8004scan (BSC). RPC fallback. Synthetic rows only if both fail
+- Catalog: 8004scan (BSC). RPC fallback. Empty list + retry if both fail — no synthetic agents.
 - Payments: x402 HTTP 402. Facilitator is Kiln until `B402_API_KEY` is set
 
 ## Four categories (equal depth)
@@ -32,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Open the live demo: https://kiln-bay-omega.vercel.app (or http://localhost:3000). Connect a wallet on BSC testnet (chain id 97).
+Open the live demo: https://kiln-agentmarketplace.vercel.app (or http://localhost:3000). Connect a wallet on BSC testnet (chain id 97).
 
 ## 90-second demo (judges)
 

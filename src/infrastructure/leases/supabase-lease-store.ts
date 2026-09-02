@@ -1,6 +1,7 @@
 import type { Heartbeat } from "@/domain/heartbeat";
 import { expiresAtFrom, statusOf, type Lease, type LeaseStatus } from "@/domain/lease";
 import type { OpenLeaseInput, LeaseStorePort } from "@/application/ports/lease-store-port";
+import { toHireLogEntry, type HireLogEntry } from "@/domain/hire-log";
 import { supabaseAdmin } from "@/infrastructure/leases/supabase";
 
 type LeaseRow = {
@@ -224,5 +225,31 @@ export class SupabaseLeaseStore implements LeaseStorePort {
       .limit(Math.min(Math.max(limit, 1), 40));
     if (error) throw new Error(error.message);
     return ((data ?? []) as BeatRow[]).map(asBeat);
+  }
+
+  async listRecentHires(limit: number): Promise<HireLogEntry[]> {
+    const { data, error } = await this.db
+      .from("kiln_leases")
+      .select("hired_at, handle, kind, wallet, envelope_tx, max_usdt")
+      .order("hired_at", { ascending: false })
+      .limit(Math.min(Math.max(limit, 1), 80));
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as Array<{
+      hired_at: string;
+      handle: string;
+      kind: string;
+      wallet: string;
+      envelope_tx: string | null;
+      max_usdt: number | string;
+    }>).map((row) =>
+      toHireLogEntry({
+        hiredAt: row.hired_at,
+        handle: row.handle,
+        kind: row.kind,
+        wallet: row.wallet,
+        envelopeTx: row.envelope_tx,
+        maxUsdt: Number(row.max_usdt),
+      }),
+    );
   }
 }

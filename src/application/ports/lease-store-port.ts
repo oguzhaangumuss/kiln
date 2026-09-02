@@ -2,6 +2,7 @@ import type { Agent } from "@/domain/agent";
 import type { Heartbeat } from "@/domain/heartbeat";
 import type { Lease } from "@/domain/lease";
 import type { SampleTrace } from "@/domain/sample-trace";
+import type { HireLogEntry } from "@/domain/hire-log";
 
 export type OpenLeaseInput = {
   wallet: string;
@@ -26,4 +27,5 @@ export type LeaseStorePort = {
   listDueForPulse(limit: number): Promise<Lease[]>;
   recentHeartbeats(leaseId: string, limit: number): Promise<Heartbeat[]>;
   touchWallet(wallet: string): Promise<void>;
+  listRecentHires(limit: number): Promise<HireLogEntry[]>;
 };

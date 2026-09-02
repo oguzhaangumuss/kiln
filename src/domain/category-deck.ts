@@ -165,14 +165,6 @@ export function buildCategoryDeck(agent: Agent): CategoryDeck {
 }
 
 export function informedMetricLine(agent: Agent, detail = false): string {
-  const deck = buildCategoryDeck(agent);
-  if (!detail) {
-    if (agent.kind === "yield") return aprLine(agent);
-    if (agent.kind === "rebalancing" || agent.kind === "grid") return markLine(agent);
-    if (agent.kind === "health-factor") {
-      return healthTools(agent).found ? "HF tool listed" : "No HF tool listed";
-    }
-    return "";
-  }
-  return deck.metricBody;
+  if (!detail) return "";
+  return buildCategoryDeck(agent).metricBody;
 }

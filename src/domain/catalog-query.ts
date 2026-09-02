@@ -1,6 +1,6 @@
 import type { Agent, AgentKind, Pulse } from "@/domain/agent";
 
-export type CatalogFeed = "synthetic" | "bsc-rpc" | "8004scan";
+export type CatalogFeed = "bsc-rpc" | "8004scan";
 
 export type AgentSort =
   | "relevance"

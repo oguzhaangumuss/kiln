@@ -9,7 +9,7 @@ export function hireBlockers(input: {
   if (!input.sampled) reasons.push("Fire sample, or skip it, so hire is not a blind click.");
   if (!input.capOk) reasons.push("Set a spend cap above zero. Revoked envelopes cannot hire.");
   if (!input.contractsReady) {
-    reasons.push("Load Kiln contracts from the wallet bar (shared addresses or Deploy).");
+    reasons.push("Kiln contracts are not loaded. Shared env addresses should appear without Deploy.");
   }
   return reasons;
 }

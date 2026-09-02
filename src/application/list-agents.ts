@@ -1,4 +1,5 @@
-import type { Agent } from "@/domain/agent";
+import type { Agent, AgentKind } from "@/domain/agent";
+import { AGENT_KINDS } from "@/domain/kind";
 import type { AgentSort, CatalogPage, CatalogQuery } from "@/domain/catalog-query";
 import { assessTrust } from "@/domain/trust";
 import type { TrustReport } from "@/domain/trust";
@@ -15,12 +16,19 @@ export type ListedAgent = {
 
 export type ListAgentsResult = CatalogPage & {
   items: ListedAgent[];
+  kindCounts: Record<AgentKind, number>;
 };
 
+export function countKinds(items: ListedAgent[]): Record<AgentKind, number> {
+  const counts = Object.fromEntries(AGENT_KINDS.map((kind) => [kind, 0])) as Record<
+    AgentKind,
+    number
+  >;
+  for (const row of items) counts[row.agent.kind] += 1;
+  return counts;
+}
+
 function warningFor(feed: ListAgentsResult["feed"]): string {
-  if (feed === "synthetic") {
-    return "Showing sample agents. The live 8004scan index and the on-chain fallback are both unavailable.";
-  }
   if (feed === "bsc-rpc") {
     return "Showing the on-chain ERC-8004 registry. 8004scan search is unavailable. Registration is permissionless, so a mint is not a trust signal.";
   }
@@ -81,6 +89,7 @@ export async function listAgents(
 
   return {
     items: sortListed(filtered, query.sort),
+    kindCounts: countKinds(filtered),
     totalOnChain: raw.totalOnChain,
     offset,
     limit,
