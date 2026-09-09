@@ -76,10 +76,17 @@ const KEYWORDS: Array<{ kind: AgentKind; needles: Array<[string, number]> }> = [
       ["yield", STRONG],
       ["apr", STRONG],
       ["apy", STRONG],
-      ["farm", STRONG],
-      ["compound", STRONG],
-      ["staking", STRONG],
+      // "farm" alone catches airdrop farming and literal agriculture, so the
+      // DeFi sense has to be spelled out; bare "farm" only breaks a tie.
+      ["yield farm", STRONG],
+      ["farming protocol", STRONG],
+      ["auto-compound", STRONG],
+      ["autocompound", STRONG],
+      ["liquid staking", STRONG],
       ["highest available", STRONG],
+      ["farm", WEAK],
+      ["compound", WEAK],
+      ["staking", WEAK],
       ["cake", WEAK],
       ["pancake", WEAK],
     ],
@@ -89,6 +96,11 @@ const KEYWORDS: Array<{ kind: AgentKind; needles: Array<[string, number]> }> = [
 /**
  * Highest score wins. Ties fall to the kind whose strongest needle appears
  * earliest in the text, which favours the phrase the card leads with.
+ *
+ * A category is only claimed once something names the mandate: weak needles
+ * are supporting evidence, never a verdict on their own. Otherwise "Farming
+ * and Nature" and node-babysitting for airdrop farming both read as yield,
+ * which pads a chip with cards a hirer cannot use.
  */
 export function classifyKind(text: string): AgentKind {
   const t = text.toLowerCase();
@@ -105,7 +117,7 @@ export function classifyKind(text: string): AgentKind {
       score += weight;
       if (weight === STRONG && at < firstAt) firstAt = at;
     }
-    if (score === 0) continue;
+    if (score === 0 || firstAt === Number.MAX_SAFE_INTEGER) continue;
     if (score > bestScore || (score === bestScore && firstAt < bestAt)) {
       best = row.kind;
       bestScore = score;

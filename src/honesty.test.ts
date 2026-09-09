@@ -156,6 +156,24 @@ describe("classifyKind", () => {
   it("does not let a bare 'trading' claim yield", () => {
     expect(classifyKind("autonomous trading agent")).toBe("unknown");
   });
+
+  // A weak needle is evidence, not a verdict: padding a chip with cards a hirer
+  // cannot use costs more than the extra row is worth.
+  it("does not read airdrop farming or agriculture as yield", () => {
+    expect(
+      classifyKind("Runs testnet and node automation, keeping nodes online for airdrop farming"),
+    ).toBe("unknown");
+    expect(classifyKind("loklokturkey.agent Farming and Nature")).toBe("unknown");
+  });
+
+  it("still classifies genuine yield cards", () => {
+    expect(classifyKind("Sentinels Yield Router: yield optimisation seller for BNB Chain")).toBe(
+      "yield",
+    );
+    expect(classifyKind("Yield Scout reads PancakeSwap V3 pools and reports best APR")).toBe(
+      "yield",
+    );
+  });
 });
 
 describe("interleaveRoundRobin", () => {
